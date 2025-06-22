@@ -1,1 +1,4 @@
 *.docx
+*.html
+/MultilevelAnalysis_Code_files
+.DS_Store

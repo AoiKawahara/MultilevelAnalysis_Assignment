@@ -9,49 +9,55 @@ editor_options:
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+setwd('/Users/aoikawahara/Library/CloudStorage/OneDrive-KULeuven/Leuven/08_Multilevel Analysis/Assignment')
 ```
 
-```{r setup, echo=FALSE}
-setwd('/Users/aoikawahara/Library/CloudStorage/OneDrive-KULeuven/Leuven/08_Multilevel Analysis/Assignment')
+```{r libraries}
+library(dplyr)
+library(psych)
+library(corrplot)
+library(readr)
+library(lme4)
+library(lattice)
+library(texreg)
+library(ggplot2)
 ```
 
 ## Data Management
 
-This project conducts a secondary analysis on the data from a secondary analysis of the data from the American National Election Studies (ANES), which was conducted prior to the presidential election in 2024 in the U.S.
+This project conducts a secondary analysis on the data from a secondary analysis of the data from the American National Election Studies (ANES), which was conducted prior to the presidential election in 2024 in the U.S. The ANES 2024 time-series study conducted a pre-election survey between August 3, 2024, and November 5, 2024. The election day was November 5, 2024.
 
-The ANES 2024 Time Series study was conducted a pre-election survey between August 3, 2024 and November 5, 2024. Election Day was November 5, 2024.
+The items considered for the analysis are as follows.
 
-The items considered for the analysis are following.
+- 2-level specification
 
--   2-level specification
+    - V243001 (Sample Location State Postal Abbreviation) = `state`
 
-    -   V243001 (Sample Location State Postal Abbreviation) = `state`
+- Respondents' socio-economic attributes and political attitudes
 
--   Respondents' socio-economic attributes
+    - V241458x (Respondent Age on Election Day) = `age`
 
-    -   V241458x (Respondent Age on Election Day) = `age`
+    - V241551 (What is your gender?) = `gender`
 
-    -   V241551 (What is your gender?) = `gender`
+    - V241501x (Self-identified Race/Ethnicity) = `ethnic`
 
-    -   V241501x (Self-identified Race/Ethnicity) = `ethnic`
+    - V241567x (Total Household Income in 6 categories) = `income`
 
-    -   V241567x (Total Household Income in 6 categories) = `income`
+    - V241465x (Respondent 5 Category Level of Education) = `educ`
 
-    -   V241465x (Respondent 5 Category Level of Education) = `educ`
+    - V242337 (How Would You Describe Your Social Class) = `class`
 
-    -   V242337 (How Would You Describe Your Social Class) = `class`
+    - V242144 (How would you rate gay men and lesbians) = `lgbt`
 
-    -   V242144 (How would you rate gay men and lesbians) = `lgbt`
+    - V242151 (How would you rate transgender people) = `trans`
 
-    -   V242151 (How would you rate transgender people) = `trans`
+- Variables of interest (Attitude towards Donald Trump)
 
--   Variables of interest (Attitude towards Donald Trump)
+    - V241157 (How would you rate Donald Trump in 100 scale) = `rate`
 
-    -   V241157 (How would you rate Donald Trump in 100 scale) = `rate`
+    - V241205 (Republican Presidential Candidate Trait: Strong Leadership) = `leader`
 
-    -   V241205 (Republican Presidential Candidate Trait: Strong Leadership) = `leader`
-
-    -   V241206 (Republican Presidential Candidate Trait: Really Cares) = `care`
+    - V241206 (Republican Presidential Candidate Trait: Really Cares) = `care`
 
     -   V241207 (Republican Presidential Candidate Trait: Knowledgeable) = `knwled`
 
@@ -64,36 +70,34 @@ anes <- read.csv("anes.csv")
 
 # Select columns
 anes <- anes %>%
-  dplyr::select(
-    state = V243001,
-    age = V241458x,
-    gender = V241551,
-    ethnic = V241501x,
-    income = V241567x,
-    educ = V241465x,
-    class = V242337,
-    lgbt = V242144,
-    trans = V242151,
-    rate = V241157,
-    leader = V241205,
-    care = V241206,
-    knwled = V241207,
-    honest = V241208,
-    energ = V241209
-  )
+  dplyr::select(state = V243001,
+                age = V241458x,
+                gender = V241551,
+                ethnic = V241501x,
+                income = V241567x,
+                educ = V241465x,
+                class = V242337,
+                lgbt = V242144,
+                trans = V242151,
+                rate = V241157,
+                leader = V241205,
+                care = V241206,
+                knwled = V241207,
+                honest = V241208,
+                energ = V241209)
 ```
 
 ### Missing Data
 
-Within the 5521 entire answers, 1377 answers were deleted due to missing values. The list-wise deletion was applied to analyze complete cases. All the analysis are based on 4144 answers with no missing values.
+Within the 5521 entire answers, 1377 answers were deleted due to missing values. The list-wise deletion was applied to analyze complete cases. All the analyses are based on 4144 answers with no missing values.
 
-Note that dealing with missing data is not the main concern of the project. The complete case analysis simplifies the modeling process, avoiding the complexity of handling missing data. However, the project deletes nearly \*\*\*% of data, which might reduce the precision of estimates and make the results systematically biased. So the careful themantic examination of the result is required because the probability of missingness might be related to unobserved data. Thus, there are some limited generalizability of the results.
+Note that dealing with missing data is not the main concern of the project. The complete case analysis simplifies the modeling process, avoiding the complexity of handling missing data. However, the project deletes nearly 24.94% of data, which might reduce the precision of estimates and make the results systematically biased. So, the careful thematic examination of the result is required because the probability of missingness might be related to unobserved data. Thus, there is some limited generalizability of the results.
 
 ```{r missing_data}
-# The list-wise deletion 5521 -> 4144 obs.
+# The list-wise deletion (5521 -> 4144 obs.)
 anes <- subset(anes, anes$age > 0 &
                  anes$gender > 0 & anes$gender < 4 &
-                 anes$ethnic > 0 & # 
+                 anes$ethnic > 0 &
                  anes$income > 0 &
                  anes$educ > 0 &
                  anes$class > 0 &
@@ -104,17 +108,12 @@ anes <- subset(anes, anes$age > 0 &
                  anes$care > 0 &
                  anes$knwled > 0 &
                  anes$honest > 0 &
-                 anes$energ > 0
-               )
+                 anes$energ > 0)
 ```
 
 ### Correlation Matrix
 
-There are a couple of remarks that should be noted.
-
-Correlation matrix reve
-
-In the process of conducting the analysis, the answers of five items, `leader`, `care`, `knwled`, `honest` and `energ`, measurements of sentiments toward Donald Trump are reversed, in order to have high values for positive sentiments.
+Upon the analysis, the answers of five items, `leader`, `care`, `knwled`, `honest` and `energ`, measurements of sentiments toward Donald Trump are reversed, in order to have high values for positive sentiments.
 
 ```{r cor}
 # Reverse variables (0~4 scale)
@@ -128,15 +127,16 @@ anes$energ <- 5 - anes$energ
 anes_ord <- anes %>%
   dplyr::select(-state, -gender, -ethnic)
 
-library(corrplot)
 corrplot(cor(anes_ord), addCoef.col="black")
 ```
 
 ### Standardize
 
-Treating income as continuous variables.
+Before beginning the analysis, all the variables are standardized in order to maintain consistency. In order to directly compare the effect of each variable in a regression model, they are standardized (mean = 0, standard deviation = 1). By doing so, each coefficient represents the effect of a one standard deviation change in the predictor, making it easier to assess the effect of each of them on the variable of interest.
 
-Ligon, E. (1989). The Development and Use of a Consistent Income Measure for the General Social Survey. GSS Methodological Report No. 64.
+Also, even though the respondents' income was asked in the income categories, the analysis tries to treat one's income as a continuous measure. The converting method follows the study by Ligon, E (1989).
+
+*Ligon, E. (1989). The Development and Use of a Consistent Income Measure for the General Social Survey. GSS Methodological Report No. 64.*
 
 ```{r standardize}
 table(anes$income)
@@ -156,9 +156,9 @@ anes <- anes %>%
 
 ### Create a variable of interest "Sentiment towards Donald Trump"
 
-The project applies Cronbach’s alpha for the reliability check on selected six items to measure a respondent's sentiment towards Donald Trump. The alpha revealed that the concept is reliably measured by six questions (alpha = 0.96).
+This project calculates a combined score to measure one’s attitudes toward Donald Trump, as a variable of interest. Each variable (`rate`, `leader`, `care`, `knwled`, `honest`, `energ`) was standardized and summed up.
 
-This project calculates one combined score to measure one’s attitudes toward Donald Trump. Each variable (`rate`, `leader`, `care`, `knwled`, `honest`, `energ`) were standardized, and calculated a sum.
+The project applies Cronbach’s alpha for the reliability check on the selected six items to measure a respondent's sentiment towards Donald Trump. The alpha revealed that the concept is reliably measured by six questions (alpha = 0.96).
 
 ```{r strump}
 dftrump <- anes %>%
@@ -199,7 +199,7 @@ anes$class <- factor(anes$class,
 
 ### Add a state-level variable (Real GDP by state)
 
-As a state-level variable, the real GDP by state of 4th Quarter 2024 is concerned. The data is obtained from the U.S. Bureau of Economic Analysis (BEA).
+As a state-level variable, the real GDP by state for the 4th Quarter 2024 is concerned. The data is obtained from the U.S. Bureau of Economic Analysis (BEA) in 2024.
 
 ```{r gdp}
 df_gdp <- read_csv("gdp.csv")
@@ -215,29 +215,43 @@ anes <- anes %>%
 
 First, an empty model with sentiment toward Donald Trump (`strump`) as the dependent variable and states as level-2 clusters is estimated.
 
-According to the intra-class correlation (ICC), approximately 3.6% is due to between-state differences.
+According to the intra-class correlation (ICC), which measures the proportion of variance that is due to differences between level-2 clusters, approximately 3.68% of the total variance is due to between-state differences.
 
-Create a caterpillar plot from the empty model. The plot shows how each state deviates from the overall average level of the dependent variable (`strump`).
+This value indicates that there is only a small effect of differences in states, while other factors such as probably individual-level differences (socio-economic attributes, etc.). Still, the effect of level-2 difference should not be ignored.
 
-[Is the ranking in line with your expectations? Are there any countries that stick out?]{.underline}
+The caterpillar plot shows how each state deviates from the overall average level of the dependent variable (`strump`). The ranking of the states largely aligns with the classification of blue, red, and swing states. Red states such as Missouri, Alabama, Arkansas, Tennessee, South Carolina, Texas, West Virginia, and North Dakota rank high, while blue states such as California, New York, Vermont, Oregon, Washington, Massachusetts, Maryland, Hawaii, and District of Columbia position themselves lower in the ranking. This suggests that individual-level sentiment toward Donald Trump is closely related to the political ideologies and electoral maps at the state level.
 
-```{r rim_null}
+```{r rim_null, echo=FALSE}
 model0 <- lmer(formula = strump ~ 1 + (1|States), data = anes)
 summary(model0)
 
 # Calculate ICC
-1.116 / (1.116 + 29.15) # 0.03687306
+1.116 / (1.116 + 29.150) # 0.03687306
 
-# caterpillar plot
-u0j <- ranef(model0)  # Extract random effects (level-2 residuals)
+# Caterpillar plot
+u0j <- ranef(model0)
 dotplot(u0j)
+
+# Visualize the random intercept model
+d = expand.grid(lgbt = seq(min(anes$lgbt), max(anes$lgbt), by = .1),
+                States = unique(anes$States))
+d$prediction = predict(model0, newdata=d)
+d$aprediction = predict(model0, re.form=NA,  newdata=d)
+
+ggplot(anes, aes(x=lgbt, y=strump)) +
+  geom_line(data=d, aes(x=lgbt, y=prediction, group=States, color=States)) + 
+  geom_line(data=d, color="black", linewidth=1.25, aes(x=lgbt, y=aprediction)) +
+  labs(title="Random Intercept Model", caption="Dataset: ANES") +
+  theme(legend.position = "none")
 ```
 
 ### Estimate a model with individual-level variables
 
 Second, a model with all the individual-level variables (`age`, `ethnic`, `income`, `educ`, `class`, `lgbt`, `trans`) is estimated.
 
-After examining each coefficient, there are some remarks worth noting.
+Approximately 32.05% of the unexplained variation at level-1 is reduced by the model with individual-level variables compared with the empty model. In the same way, approximately 69.20% of the unexplained variance at level-2 (between states) is reduced by the model with individual-level variables compared to the empty model.
+
+Overall, the model with all the individual-level variances substantially improves model fit and the amount of variance that is explained by the model. This suggests that individual-level attributes largely drive positive sentiment toward Donald Trump, much more than a state-level variance alone.
 
 ```{r ind_model}
 model1 <- lmer(formula = strump ~ 1 + age + ethnic + income + educ + class + lgbt + trans + (1|States), data=anes)
@@ -250,13 +264,9 @@ summary(model1)
 1 - (0.3437 / 1.116) # 0.6920251
 ```
 
-Approximately 32.05% of the unexplained variation at level-1 is reduced by the model with individual-level variables compared with the empty model.
+### Estimate a model with a state-level variable
 
-Approximately 69.20% of the unexplained variance at level-2 (between states) is reduced by the model with individual-level variables compared to the empty model.
-
-[Is there between-state variation left to be explained by country-level variables?]{.underline}
-
-### Estimate a model with state-level variables
+Third, the model with a state-level variable is estimated. However, the model did not reduce the unexplained variance. GDP does not seem to account for much variation at both individual-level and the state-level beyond what was already captured by individual-level predictors.
 
 ```{r stat_model}
 model2 <- lmer(formula = strump ~ 1 + age + ethnic + income + educ + class + lgbt + trans + gdp + (1|States), data=anes)
@@ -270,6 +280,8 @@ summary(model2)
 ```
 
 ## Create an estimate table
+
+Estimation table that summarizes all three models are shown below.
 
 ```{r sum_rim}
 screenreg(list(model0, model1, model2),
@@ -294,13 +306,12 @@ screenreg(list(model0, model1, model2),
 
 ## Two-level Random Intercept and Random Slope Models
 
-In addition to the two-level random intercept model, the random slopes of the feelings towards LGBT community and transgender people are included.
+In addition to the two-level random intercept models, the random slope of the feeling towards LGBT communities is included.
 
-They are the models where the effect of how people feel about LGBT communities (`lgbt`) varies between different states.
+Below, the models where the effect of how people feel about LGBT communities (`lgbt`) varies between different states are estimated.
 
-### Estimate an empty model with LGBT as a random slope
-
-```{r rirs_lgbt_null}
+```{r rirs_lgbt_null, echo=FALSE}
+# The empty model with `lgbt` as random slope is estimated for the comparison purpose.
 model0L <- lmer(formula = strump ~ 1 + lgbt + (1 + lgbt|States), data=anes)
 summary(model0L)
 
@@ -309,6 +320,10 @@ d = expand.grid(lgbt = seq(min(anes$lgbt), max(anes$lgbt), by = .1),
 d$prediction = predict(model0L, newdata=d)
 d$aprediction = predict(model0L, re.form=NA, newdata=d)
 
+# Caterpillar plot
+u <- ranef(model0L, condVar=TRUE)
+dotplot(u, scales = list(x =list(relation = 'free')))
+
 # Random Intercept vs Random Slope
 ggplot(anes, aes(x=lgbt, y=strump)) +
   geom_line(data=d, aes(x=lgbt, y=prediction, group=States, color=States), linewidth=0.3) + 
@@ -316,20 +331,19 @@ ggplot(anes, aes(x=lgbt, y=strump)) +
   labs(title="Random Intercept and Random Slope Model",
        caption="Dataset: ANES") +
   theme(legend.position = "none")
-
-# Visualizing RIRS model
-ggplot(anes, aes(x=lgbt, y=strump)) +
-  geom_line(data=d, aes(x=lgbt, y=prediction, group=States, color=States)) + 
-  geom_line(data=d, color="black", linewidth=1.25, aes(x=lgbt, y=aprediction)) +
-  labs(title="Random Intercept and Random Slope Model", caption="Dataset: ANES") +
-  theme(legend.position = "none")
-
-# Caterpillar plot
-u <- ranef(model0L, condVar=TRUE)
-dotplot(u, scales = list(x =list(relation = 'free')))
 ```
 
 ### Estimate an model with LGBT as a random slope, including all the individual-level variables
+
+Although model1L includes a random slope for the LGBT variable across states, the improvement in model fit compared to model1 is limited. This suggests that the effect of assuming as the feeling towards LGBT on Donald Trump support does not vary substantially across states.
+
+In fact, the estimated fixed effect of the LGBT variable remains almost identical in both models:
+- `model1`: −0.38742 (***, p < .001)
+- `model1L`: −0.38945 (***, p < .001)
+
+Still, including a random slope in model1L is theoretically meaningful, as it allows us to test whether the association between the feelings towards LGBT communities and political attitudes towards Donald Trump might differ by state. However, the model predictions suggests that such differences are almost negligible even though present.
+
+Therefore, the implication of the model is that individual's positive attitudes towards LGBT communities are consistently less likely to support Donald Trump, regardless of the state they live in.
 
 ```{r rirs_lgbt_ind}
 model1L <- lmer(formula = strump ~ 1 + age + ethnic + income + educ + class + lgbt + trans + (1 + lgbt|States), data=anes)
@@ -355,56 +369,58 @@ ggplot(u_df1, aes(x=condval, y=x)) +
   labs(title="Model1L: Random Intercept vs Random Slope", 
        caption="Dataset: ANES", x="Intercept", y="Slope") +
   theme(legend.position = "none")
-```
 
-### Estimate a model including the state-level variable
+ggplot(anes, aes(x=lgbt, y=strump)) +
+  geom_line(data=d, aes(x=lgbt, y=prediction, group=States, color=States), linewidth=0.3) + 
+  geom_line(data=d, color="black", linewidth=0.5, aes(x=lgbt, y=aprediction)) +
+  labs(title="Random Intercept and Random Slope Model",
+       caption="Dataset: ANES") +
+  theme(legend.position = "none")
+
+```
 
 ### Estimate a model including the state-level variable and its interaction effect with LGBT
 
+In this model, it is tested whether the effect of the feeling towards LGBT communities on Donald Trump support varies depending on state-level economic attribute (GDP by state), by including an interaction term between LGBT and GDP.
+
+The coefficient remained highly significant and nearly identical across both models, indicating that the feeling towards LGBT consistently show lower support for Donald Trump across the country.
+- `model1L`: −0.38945 (***, p < .001)
+- `model2L`: −0.38521 (***, p < .001)
+
+Furthermore, the interaction effect of the LGBT and GDP by state is revealed not to be significant (p = 0.451), meaning that there was no moderating effect of GDP on the LGBT–Trump support relationship. This suggests that even in economically wealthier states, the negative association between the feelings towards LGBT communities and Trump support does not significantly weaken.
+
+The tendency for LGBT individuals to show lower support for Trump is robust and consistent across states, regardless of regional economic differences.
+
+While the inclusion of the interaction term in model2L was theoretically meaningful, it did not yield statistically significant results. Thus, we find that the negative effect of LGBT identity on Trump support is a nationwide pattern that holds regardless of state-level GDP.
+
+```{r rirs_lgbt_stat}
+model2L <- lmer(formula = strump ~ 1 + age + ethnic + income + educ + class + lgbt + trans + gdp + lgbt:gdp + (1 + lgbt|States), data=anes)
+summary(model2L)
+```
+
 ```{r}
 
+screenreg(list(model0, model1, model2, model1L, model2L),
+          custom.model.names = c("M0", "M1", "M2", "M1L", "M2L"),
+          custom.coef.names = c("Intercept", "Age", 
+                                "Black (Ref.=white)",  
+                                "Hispanic (Ref.=white)",
+                                "Asian/Hawaiian/Pacific (Ref.=white)",
+                                "Native American/Alaska/Other (Ref.=white)",
+                                "Multiple (Ref.=white)",
+                                "Income",
+                                "High school (Ref.=underHigh)",
+                                "Post-high school (Ref.=underHigh)",
+                                "Bachlor (Ref.=underHigh)",
+                                "Graduate (Ref.=underHigh)",
+                                "Working class (Ref.=lower)",
+                                "Middle class (Ref.=lower)",
+                                "Upper (Ref.=lower)",
+                                "LGBT", "Transgender",
+                                "GDP by state", "LGBT X GDP"))
+
 
 
 ```
 
-```{r rirs_lgbt}
-# LGBT as a random slope
-model3_lgbt <- lmer(formula = strump ~ 1 + age + ethnic + income + educ + class + lgbt + trans + (1 + lgbt|States), data=anes)
-summary(model3_lgbt)
 
-u <- ranef(model3_lgbt, condVar=TRUE)
-dotplot(u, scales = list(x =list(relation = 'free')))
-
-u_df <- as.data.frame(u)
-u_df1 <- subset(u_df, term=="(Intercept)")
-u_df2 <- subset(u_df, term=="lgbt")
-u_df1$x <- u_df2$condval
-
-ggplot(u_df1, aes(x=condval, y=x)) +
-  geom_point(aes(color=grp), shape=19) +
-  geom_hline(yintercept=0) +
-  geom_vline(xintercept=0) +
-  labs(title="Model 3: Random Intercept vs Random Slope", 
-       caption="Dataset: ANES 2024", x="Intercept", y="Slope")
-```
-
-```{r rirs_trans}
-# trans as a random slope
-model3_trans <- lmer(formula = strump ~ 1 + age + ethnic + income + educ + class + lgbt + trans + (1 + trans|States), data=anes)
-summary(model3_trans)
-
-u <- ranef(model3_trans, condVar=TRUE)
-dotplot(u, scales = list(x =list(relation = 'free')))
-
-u_df <- as.data.frame(u)
-u_df1 <- subset(u_df, term=="(Intercept)")
-u_df2 <- subset(u_df, term=="trans")
-u_df1$x <- u_df2$condval
-
-ggplot(u_df1, aes(x=condval, y=x)) +
-  geom_point(aes(color=grp), shape=19) +
-  geom_hline(yintercept=0) +
-  geom_vline(xintercept=0) +
-  labs(title="Model 3: Random Intercept vs Random Slope", 
-       caption="Dataset: ANES 2024", x="Intercept", y="Slope")
-```
